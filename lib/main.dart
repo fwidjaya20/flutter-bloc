@@ -1,4 +1,11 @@
+import 'package:bloc_test/widgets/bottom_loader.dart';
+import 'package:bloc_test/widgets/post_widget.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:bloc_test/bloc/post/bloc.dart';
+
+import 'bloc/post/bloc.dart';
 
 void main() => runApp(MyApp());
 
@@ -6,58 +13,96 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
+      title: 'Flutter Infinite Scroll',
+      home: Scaffold(
+        appBar: AppBar(
+          title: Text('Posts'),
+        ),
+        body: BlocProvider(
+          builder: (BuildContext context) => PostBloc(httpClient: http.Client())..dispatch(Fetch()),
+          child: HomePage(),
+        ),
       ),
-      home: MyHomePage(title: 'Flutter Demo Home Page'),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  MyHomePage({Key key, this.title}) : super(key: key);
-
-  final String title;
-
+class HomePage extends StatefulWidget {
   @override
-  _MyHomePageState createState() => _MyHomePageState();
+  State<StatefulWidget> createState() {
+    return _HomePageState();
+  }
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class _HomePageState extends State<HomePage> {
 
-  void _incrementCounter() {
-    setState(() {
-      _counter++;
-    });
+  final _scrollController = ScrollController();
+  final _scrollThreshold = 200.0;
+  PostBloc _postBloc;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _scrollController.addListener(_onScroll);
+    _postBloc = BlocProvider.of<PostBloc>(context);
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.title),
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Text(
-              'You have pushed the button this many times:',
-            ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.display1,
-            ),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
+    return BlocBuilder(
+      bloc: _postBloc,
+      builder: (BuildContext context, PostState state) {
+        if (state is PostUninitialized) {
+          return Center(
+            child: CircularProgressIndicator(),
+          );
+        }
+
+        if (state is PostError) {
+          return Center(
+            child: Text('failed to fetch posts'),
+          );
+        }
+
+        if (state is PostLoaded) {
+          if (state.posts.isEmpty) {
+            return Center(
+              child: Text('no posts'),
+            );
+          }
+
+          return ListView.builder(
+            itemBuilder: (BuildContext context, int index) {
+              return index >= state.posts.length
+                  ? BottomLoader()
+                  : PostWidget(post: state.posts[index]);
+            },
+            itemCount: state.hasReachedMax
+                ? state.posts.length
+                : state.posts.length + 1,
+            controller: _scrollController,
+          );
+        }
+      },
     );
   }
+
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+
+    super.dispose();
+  }
+
+  void _onScroll() {
+    final maxScroll = _scrollController.position.maxScrollExtent;
+    final currentScroll = _scrollController.position.pixels;
+    
+    if (maxScroll - currentScroll <= _scrollThreshold) {
+      _postBloc.dispatch(Fetch());
+    }
+  }
+
 }
