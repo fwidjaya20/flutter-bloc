@@ -10,8 +10,8 @@ dependencies:
   flutter:
     sdk: flutter
 
-  bloc: ^0.14.0
-  flutter_bloc: ^0.17.0
+  dio: ^2.1.7
+  rxdart: ^0.20.0
 
   cupertino_icons: ^0.1.2
 
