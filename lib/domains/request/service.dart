@@ -1,3 +1,4 @@
+import 'package:bloc_test/commons/enums/http_method.dart';
 import 'package:bloc_test/commons/valueobjects/address.dart';
 import 'package:bloc_test/domains/api/client.dart';
 import 'package:bloc_test/domains/friend/model/friend_model.dart';
@@ -11,7 +12,7 @@ class RequestService extends ApiClient {
     try {
       print("--> FETCH FRIEND REQUEST");
 
-      Response response = await this.request("GET", "?results=5");
+      Response response = await this.request(HttpMethod.GET, "?results=5");
 
       List<Person> friendRequests = (response.data["results"] as List).map((r) {
         return Person(
